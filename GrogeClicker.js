@@ -149,52 +149,63 @@ GrogeClicker.launch = function() {
     };
 
     GrogeClicker.getMenuString = function() {
-        let str = ''
+        let listingDiv = function(innerHtml, labelText, enabled) {
+            let className = 'listing';
+            if (!enabled) {
+                className += ' disable';
+            }
+            let str = '<div class="' + className + '">';
+            str += innerHtml;
+            if (labelText !== '') {
+                str += '<label>' + labelText + '</label>';
+            }
+            str += '</div>';
+            return str;
+        };
 
-        str += '<div class="listing">' +
+        let str = ''
+        str += listingDiv(
             CCSE.MenuHelper.ToggleButton(GrogeClicker.config, 'running', 'GrogeClicker_option_running',
-                'Running: ON', 'Running: OFF', 'GrogeClicker.toggleOption') +
-            '<label>(quick toggle all functionality)</label></div>';
-        str += '<div class="listing">' +
+                'Running: ON', 'Running: OFF', 'GrogeClicker.toggleOption'),
+            '(quick toggle all functionality)', true);
+        str += listingDiv(
             CCSE.MenuHelper.ToggleButton(GrogeClicker.config, 'showToggleButton',
                 'GrogeClicker_option_showToggleButton',
-                'Toggle Button: ON', 'Toggle Button: OFF', 'GrogeClicker.toggleOption') +
-            '<label>(show the toggle button below the big cookie)</label></div>';
-        str += '<div class="listing">' +
+                'Toggle Button: ON', 'Toggle Button: OFF', 'GrogeClicker.toggleOption'),
+            '(show the toggle button below the big cookie)', GrogeClicker.config.running);
+        str += listingDiv(
             CCSE.MenuHelper.ToggleButton(GrogeClicker.config, 'shouldClick',
                 'GrogeClicker_option_shouldClick',
-                'Click: YES', 'Click: NO', 'GrogeClicker.toggleOption') +
-            '<label>(whether to click the big cookie)</label></div>';
-
-        let clickSliderClass = GrogeClicker.config.shouldClick ? '' : 'disable';
-        str += '<div class="listing ' + clickSliderClass + '">' +
+                'Click: YES', 'Click: NO', 'GrogeClicker.toggleOption'),
+            '(whether to click the big cookie)', GrogeClicker.config.running);
+        str += listingDiv(
             CCSE.MenuHelper.Slider('GrogeClicker_option_clickDelayMs',
                 'Delay between clicks: ', '[$] ms',
                 function() { return GrogeClicker.config.clickDelayMs; },
                 'GrogeClicker.updateClickDelayMs(this.value)',
-                1, 1000, 1) +
-            '<label>(delay between clicking the big cookie)</label></div>';
-
-        str += '<div class="listing">' +
+                1, 1000, 1),
+            '(delay between clicking the big cookie)',
+            GrogeClicker.config.running && GrogeClicker.config.shouldClick);
+        str += listingDiv(
             CCSE.MenuHelper.ToggleButton(GrogeClicker.config, 'shouldClickGolden',
                 'GrogeClicker_option_shouldClickGolden',
-                'Click Golden: YES', 'Click Golden: NO', 'GrogeClicker.toggleOption') +
-            '<label>(whether to click golden cookies)</label></div>';
-        str += '<div class="listing">' +
+                'Click Golden: YES', 'Click Golden: NO', 'GrogeClicker.toggleOption'),
+            '(whether to click golden cookies)', GrogeClicker.config.running);
+        str += listingDiv(
             CCSE.MenuHelper.ToggleButton(GrogeClicker.config, 'shouldClickSeasonal',
                 'GrogeClicker_option_shouldClickSeasonal',
-                'Click Seasonal: YES', 'Click Seasonal: NO', 'GrogeClicker.toggleOption') +
-            '<label>(whether to click seasonal cookies like reindeer)</label></div>';
-        str += '<div class="listing">' +
+                'Click Seasonal: YES', 'Click Seasonal: NO', 'GrogeClicker.toggleOption'),
+            '(whether to click seasonal cookies like reindeer)', GrogeClicker.config.running);
+        str += listingDiv(
             CCSE.MenuHelper.ToggleButton(GrogeClicker.config, 'shouldClickWrath',
                 'GrogeClicker_option_shouldClickWrath',
-                'Click Wrath: YES', 'Click Wrath: NO', 'GrogeClicker.toggleOption') +
-            '<label>(whether to click wrath cookies)</label></div>';
-        str += '<div class="listing">' +
+                'Click Wrath: YES', 'Click Wrath: NO', 'GrogeClicker.toggleOption'),
+            '(whether to click wrath cookies)', GrogeClicker.config.running);
+        str += listingDiv(
             CCSE.MenuHelper.ToggleButton(GrogeClicker.config, 'shouldClickFortune',
                 'GrogeClicker_option_shouldClickFortune',
-                'Click Fortune: YES', 'Click Fortune: NO', 'GrogeClicker.toggleOption') +
-            '<label>(whether to click fortune news headlines)</label></div>';
+                'Click Fortune: YES', 'Click Fortune: NO', 'GrogeClicker.toggleOption'),
+            '(whether to click fortune news headlines)', GrogeClicker.config.running);
         return str;
     };
 
