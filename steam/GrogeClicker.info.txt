@@ -1,0 +1,12 @@
+{
+  "Name": "Groge Clicker",
+  "ID": "GrogeClicker",
+  "Author": "Groge",
+  "Description": "An autoclicker that includes a couple niceties that most others don't.",
+  "ModVersion": 1.0,
+  "GameVersion": 2.053,
+  "Date": "02/09/2026",
+  "Dependencies": ["CCSE"],
+  "Disabled": 0,
+  "AllowSteamAchievs": 1
+}

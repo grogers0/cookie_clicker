@@ -216,7 +216,7 @@ GrogeClicker.launch = function() {
             CCSE.MenuHelper.ToggleButton(GrogeClicker.config, 'showToggleButton',
                 'GrogeClicker_option_showToggleButton',
                 'Toggle Button: ON', 'Toggle Button: OFF', 'GrogeClicker.toggleOption'),
-            '(show the toggle button below the big cookie)', GrogeClicker.config.running);
+            '(show the toggle button below the big cookie)', true);
         str += listingDiv(
             CCSE.MenuHelper.ToggleButton(GrogeClicker.config, 'shouldClick',
                 'GrogeClicker_option_shouldClick',
@@ -275,7 +275,7 @@ GrogeClicker.launch = function() {
         GrogeClicker.resetTimers();
     };
 
-    Game.registerMod(GrogeClicker.name, GrogeClicker);
+    Game.registerMod('GrogeClicker', GrogeClicker);
 };
 
 
