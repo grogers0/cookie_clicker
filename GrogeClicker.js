@@ -87,7 +87,7 @@ GrogeClicker.launch = function() {
             clickDelayMs: 1,
             shouldClickGolden: true,
             shouldClickSeasonal: true,
-            shouldClickWrath: false,
+            shouldClickWrath: true,
             shouldClickFortune: true,
         };
     };
@@ -103,7 +103,8 @@ GrogeClicker.launch = function() {
         for (let i = 0; i < Game.shimmers.length; i++) {
             let shimmer = Game.shimmers[i];
             if (shimmer.type === 'golden') {
-                if (shimmer.wrath > 0 && GrogeClicker.config.shouldClickWrath) {
+                if (shimmer.wrath > 0 && GrogeClicker.config.shouldClickWrath &&
+                    !shimmer.forceObj.wrath) {
                     shimmer.pop();
                 } else if (shimmer.wrath === 0 && GrogeClicker.config.shouldClickGolden) {
                     shimmer.pop();
@@ -243,7 +244,7 @@ GrogeClicker.launch = function() {
             CCSE.MenuHelper.ToggleButton(GrogeClicker.config, 'shouldClickWrath',
                 'GrogeClicker_option_shouldClickWrath',
                 'Click Wrath: YES', 'Click Wrath: NO', 'GrogeClicker.toggleOption'),
-            '(whether to click wrath cookies)', GrogeClicker.config.running);
+            '(whether to click wrath cookies, but backfires from the "force the hand of fate" spell are never clicked)', GrogeClicker.config.running);
         str += listingDiv(
             CCSE.MenuHelper.ToggleButton(GrogeClicker.config, 'shouldClickFortune',
                 'GrogeClicker_option_shouldClickFortune',
