@@ -2,7 +2,7 @@
   "Name": "Groge Clicker",
   "ID": "GrogeClicker",
   "Author": "Groge",
-  "Description": "An autoclicker that includes a couple niceties that most others don't.",
+  "Description": "An autoclicker that includes a couple niceties that most others don't.\n\n1) Clicks the cookie, golden/wrath cookies, and fortunes. Each of these can be independently disabled.\n2) Wrath cookies from FtHoF backfires are never clicked, even if natural wrath cookies are.\n3) A quick toggle below the big cookie to stop/start execution (since autoclicking can prevent clicking krumblor)\n4) An API useable by other mods to suppress execution (e.g. to hold golden cookies to set up a combo).\n\nNOTE - does not disable steam achievements.",
   "ModVersion": 1.0,
   "GameVersion": 2.053,
   "Date": "02/09/2026",
