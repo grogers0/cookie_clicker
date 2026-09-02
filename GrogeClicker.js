@@ -9,6 +9,10 @@ GrogeClicker.launch = function() {
     GrogeClicker.init = function() {
         GrogeClicker.isLoaded = true;
         GrogeClicker.config = GrogeClicker.defaultConfig();
+        GrogeClicker.nextSuppressionId = 1;
+        GrogeClicker.clickSuppressions = new Set();
+        GrogeClicker.shimmerSuppressions = new Set();
+        GrogeClicker.fortuneSuppressions = new Set();
 
         Game.customStatsMenu.push(function() {
             CCSE.AppendStatsVersionNumber(GrogeClicker.name, GrogeClicker.version);
@@ -30,10 +34,47 @@ GrogeClicker.launch = function() {
             GrogeClicker.resetTimers();
         });
 
-        Game.Notify(GrogeClicker.name + ' loaded', '', 1, 1);
+        Game.Notify(GrogeClicker.name, 'Mod loaded', 1, 1);
 
         GrogeClicker.updateToggleButton();
         GrogeClicker.resetTimers();
+    };
+
+    // APIs that other mods can use to temporarily suppress functionality. Suppressions aren't saved
+    // across reloads
+    GrogeClicker.suppressClicks = function() {
+        const id = GrogeClicker.nextSuppressionId++;
+        GrogeClicker.clickSuppressions.add(id);
+        GrogeClicker.resetTimers();
+        return id;
+    };
+    GrogeClicker.suppressShimmers = function() {
+        const id = GrogeClicker.nextSuppressionId++;
+        GrogeClicker.shimmerSuppressions.add(id);
+        GrogeClicker.resetTimers();
+        return id;
+    };
+    GrogeClicker.suppressFortunes = function() {
+        const id = GrogeClicker.nextSuppressionId++;
+        GrogeClicker.fortuneSuppressions.add(id);
+        GrogeClicker.resetTimers();
+        return id;
+    };
+    GrogeClicker.suppress = function() {
+        const id = GrogeClicker.nextSuppressionId++;
+        GrogeClicker.clickSuppressions.add(id);
+        GrogeClicker.shimmerSuppressions.add(id);
+        GrogeClicker.fortuneSuppressions.add(id);
+        GrogeClicker.resetTimers();
+        return id;
+    };
+    GrogeClicker.unsuppress = function(id) {
+        let valid = false;
+        valid = GrogeClicker.clickSuppressions.delete(id) || valid;
+        valid = GrogeClicker.shimmerSuppressions.delete(id) || valid;
+        valid = GrogeClicker.fortuneSuppressions.delete(id) || valid;
+        GrogeClicker.resetTimers();
+        return valid;
     };
 
     GrogeClicker.shimmerCheckDelayMs = 100;
@@ -95,17 +136,19 @@ GrogeClicker.launch = function() {
         }
 
         if (GrogeClicker.config.running) {
-            if (GrogeClicker.config.shouldClick) {
+            if (GrogeClicker.config.shouldClick && GrogeClicker.clickSuppressions.size === 0) {
                 GrogeClicker.clickInterval = setInterval(GrogeClicker.doClick,
                     GrogeClicker.config.clickDelayMs);
             }
-            if (GrogeClicker.config.shouldClickGolden ||
+            if ((GrogeClicker.config.shouldClickGolden ||
                 GrogeClicker.config.shouldClickSeasonal ||
-                GrogeClicker.config.shouldClickWrath) {
+                GrogeClicker.config.shouldClickWrath) &&
+                GrogeClicker.shimmerSuppressions.size === 0) {
                 GrogeClicker.shimmerInterval = setInterval(GrogeClicker.doShimmerCheck,
                     GrogeClicker.shimmerCheckDelayMs);
             }
-            if (GrogeClicker.config.shouldClickFortune) {
+            if (GrogeClicker.config.shouldClickFortune &&
+                GrogeClicker.fortuneSuppressions.size === 0) {
                 GrogeClicker.fortuneInterval = setInterval(GrogeClicker.doFortuneCheck,
                     GrogeClicker.fortuneCheckDelayMs);
             }
