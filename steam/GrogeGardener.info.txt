@@ -1,0 +1,12 @@
+{
+  "Name": "Groge Gardener",
+  "ID": "GrogeGardener",
+  "Author": "Groge",
+  "Description": "A garden manager. TODO",
+  "ModVersion": 0.9,
+  "GameVersion": 2.053,
+  "Date": "02/09/2026",
+  "Dependencies": ["CCSE"],
+  "Disabled": 0,
+  "AllowSteamAchievs": 1
+}
