@@ -37,10 +37,28 @@ GrogeGardener.launch = function() {
     };
 
     GrogeGardener.waitForMinigame = function() {
-        if (!GrogeGardener.minigame()) {
+        let container = document.getElementById('gardenPanel');
+        if (!GrogeGardener.minigame() || !container) {
             setTimeout(GrogeGardener.waitForMinigame, 1000);
         } else {
             GrogeGardener.isMinigameLoaded = true;
+
+            let title = document.createElement('div');
+            title.id = 'GrogeGardener_title';
+            title.className = 'title gardenPanelLabel';
+            title.textContent = GrogeGardener.name;
+            container.appendChild(title);
+
+            let line = document.createElement('div');
+            line.id = 'GrogeGardener_line';
+            line.className = 'line';
+            container.appendChild(line);
+
+            let statusBox = document.createElement('div');
+            statusBox.id = 'GrogeGardener_statusBox';
+            statusBox.className = 'gardenPanelLabel';
+            container.appendChild(statusBox);
+
             GrogeGardener.resetTimers();
         }
     };
@@ -59,6 +77,13 @@ GrogeGardener.launch = function() {
             avoidPlantingDuringBuffs: false,
             maxBuffToPlant: 7, // e.g. 7x is frenzy
         };
+    };
+
+    GrogeGardener.updateStatus = function(str) {
+        let statusBox = document.getElementById('GrogeGardener_statusBox');
+        if (statusBox) {
+            statusBox.textContent = str;
+        }
     };
 
     GrogeGardener.mindOverMatterAura = 'Mind Over Matter';
@@ -185,11 +210,20 @@ GrogeGardener.launch = function() {
         GrogeGardener.removeDuplicateLockedGrowing();
 
         const targetId = GrogeGardener.getTargetPlantId();
+        if (targetId === null) {
+            if (minigame.plantsUnlockedN == minigame.plantsN) {
+                GrogeGardener.updateStatus('Cannot attempt to mutate anything, all plants unlocked');
+            } else {
+                GrogeGardener.updateStatus('Cannot attempt to mutate anything right now, awaiting further growth');
+            }
+            return;
+        }
+        GrogeGardener.updateStatus('Attempting to mutate: ' + minigame.plantsById[targetId].name);
+
         if (targetId == minigame.plants.meddleweed.id) {
             GrogeGardener.executeMutateForMeddleweed();
         }
 
-        Game.Notify(GrogeGardener.name, 'target plant: ' + targetId, 1, 1);
         // FIXME
     };
 
@@ -209,7 +243,8 @@ GrogeGardener.launch = function() {
     // Any plants which are locked and growing should be protected from contamination
     GrogeGardener.preventContamination = function() {
         const minigame = GrogeGardener.minigame();
-        const [minX, minY, lastX, lastY] = minigame.plotLimits[minigame.parent.level - 1];
+        const [minX, minY, lastX, lastY] =
+            minigame.plotLimits[Math.min(minigame.parent.level, 9) - 1];
         for (const [x, y] of GrogeGardener.getXYs()) {
             let plantId = minigame.plot[y][x][0] - 1;
             if (plantId !== -1 && !minigame.plantsById[plantId].unlocked &&
@@ -299,8 +334,12 @@ GrogeGardener.launch = function() {
         }
 
         if (targetId === null) {
+            GrogeGardener.updateStatus('Cannot attempt any cookie drops');
             return;
         }
+        GrogeGardener.updateStatus('Attempting to drop: ' +
+            Game.UpgradesById[GrogeGardener.cookieDropUpgrades().get(targetId)].name + ' (' +
+            minigame.plantsById[targetId].name + ')');
 
         // Others may already be excluded, e.g. in auto mode if we are using the plot for mutation
         // but these should always be excluded even if the user mixes up the mode
@@ -384,17 +423,6 @@ GrogeGardener.launch = function() {
             GrogeGardener.supremeIntellectAura, GrogeGardener.realityBendingAura);
     };
 
-    GrogeGardener.isCookieDropNeeded = function(plantId) {
-        for (const drop of GrogeGardener.cookieDropOrder()) {
-            if (minigame.plantsById[drop.plantId].unlocked &&
-                !Game.UpgradesById[drop.upgradeId].unlocked) {
-                targetId = drop.plantId;
-                break;
-            }
-        }
-
-    };
-
     GrogeGardener.executeGoldenCookieMode = function() {
         // FIXME
     };
@@ -424,7 +452,8 @@ GrogeGardener.launch = function() {
 
     GrogeGardener.getRawXYs = function() {
         const minigame = GrogeGardener.minigame();
-        const [firstX, firstY, lastX, lastY] = minigame.plotLimits[minigame.parent.level - 1];
+        const [firstX, firstY, lastX, lastY] =
+            minigame.plotLimits[Math.min(minigame.parent.level, 9) - 1];
         let ret = [];
         for (let y = firstY; y != lastY; y++) {
             for (let x = firstX; x != lastX; x++) {
@@ -529,7 +558,6 @@ GrogeGardener.launch = function() {
         for (const buff in Object.values(Game.buffs)) {
             if (typeof buff.multCpS !== 'undefined' && buff.name.toLowerCase().slice(0, 4) !== 'loan') {
                 multiplier = multiplier * buff.multCpS;
-                Game.Notify(GrogeGardener.name, 'buff active, name: ' + buff.name + ', multCpS: ' + buff.multCpS, 1, 1);
             }
         }
         return multiplier > 1.0 && multiplier > GrogeGardener.config.maxBuffToPlant;
@@ -673,7 +701,6 @@ GrogeGardener.launch = function() {
                 'GrogeGardener.toggleOption'),
             '(Automatically update the dragon auras when desirable)',
             GrogeGardener.config.running);
-        // TODO - base dragon auras
         str += listingDiv(
             CCSE.MenuHelper.ToggleButton(GrogeGardener.config, 'rebuyAfterDragonAura',
                 'GrogeGardener_option_rebuyAfterDragonAura',
