@@ -34,7 +34,7 @@ GrogeClicker.launch = function() {
             GrogeClicker.resetTimers();
         });
 
-        Game.Notify(GrogeClicker.name, 'Mod loaded', 1, 1);
+        Game.Notify(GrogeClicker.name, 'Mod loaded', [0, 0], 1, 1);
 
         GrogeClicker.updateToggleButton();
         GrogeClicker.resetTimers();

@@ -2,11 +2,11 @@
   "Name": "Sugar Lump Harvester",
   "ID": "SugarLumpHarvester",
   "Author": "Groge",
-  "Description": "Whenever a sugar lump is ripe, immediately harvests it to avoid waiting the extra hour for it to fall. Automatically updates the dragon auras to Dragon's Curve and Reality Bending (if possible) when harvesting to allow harvesting sooner and make the subsequent lump more likely to be rare.\n\nNOTE - does not disable steam achievements.",
+  "Description": "Whenever a sugar lump is ripe, immediately harvests it to avoid waiting the extra hour for it to fall.\n\nWhile not required, it is highly recommended to also use the \"Dragon Auras\" mod. If that mod is loaded and controlling dragon auras is enabled in this mod's options, this mod will automatically update the dragon auras to Dragon's Curve and Reality Bending when harvesting (if unlocked) to allow harvesting sooner and make the subsequent lump more likely to be rare. Afterwards the original dragon auras are replaced.\n\nNOTE - does not disable steam achievements.",
   "ModVersion": 1.0,
   "GameVersion": 2.053,
   "Date": "08/09/2026",
-  "Dependencies": ["CCSE", "DragonAuras"],
+  "Dependencies": ["CCSE"],
   "Disabled": 0,
   "AllowSteamAchievs": 1
 }

@@ -1,6 +1,6 @@
 if (SugarLumpHarvester === undefined) var SugarLumpHarvester = {};
 if (typeof CCSE == 'undefined') Game.LoadMod('https://klattmose.github.io/CookieClicker/CCSE.js');
-if (typeof DragonAuras == 'undefined') Game.LoadMod('https://grogers0.github.io/cookie_clicker/DragonAuras.js');
+// if (typeof DragonAuras == 'undefined') Game.LoadMod('https://grogers0.github.io/cookie_clicker/DragonAuras.js'); // Optional
 
 SugarLumpHarvester.id = 'SugarLumpHarvester';
 SugarLumpHarvester.name = 'Sugar Lump Harvester';
@@ -35,12 +35,20 @@ SugarLumpHarvester.launch = function() {
 
         SugarLumpHarvester.execute();
 
-        Game.Notify(SugarLumpHarvester.name, 'Mod loaded', 1, 1);
+        SugarLumpHarvester.notify('Mod loaded', 1, 1);
+    };
+
+    SugarLumpHarvester.notify = function(desc, quick, noLog) {
+        return Game.Notify(SugarLumpHarvester.name, desc, [28, 14], quick, noLog);
+    };
+
+    SugarLumpHarvester.dragonAurasModLoaded = function() {
+        return (typeof DragonAuras != 'undefined');
     };
 
     SugarLumpHarvester.defaultConfig = function() {
         return {
-            controlDragonAuras: (typeof DragonAuras != 'undefined'),
+            controlDragonAuras: SugarLumpHarvester.dragonAurasModLoaded(),
             rebuyAfterDragonAura: true,
         };
     };
@@ -50,15 +58,16 @@ SugarLumpHarvester.launch = function() {
     };
 
     SugarLumpHarvester.shouldControlDragonAuras = function() {
-        return SugarLumpHarvester.config.controlDragonAuras && typeof DragonAuras != 'undefined';
+        return SugarLumpHarvester.config.controlDragonAuras &&
+            SugarLumpHarvester.dragonAurasModLoaded();
     };
 
     SugarLumpHarvester.shouldControlDragonAurasWithWarning = function() {
         if (!SugarLumpHarvester.config.controlDragonAuras) {
             return false;
-        } else if (typeof DragonAuras == 'undefined') {
-            Game.Notify(SugarLumpHarvester.name,
-                'Warning: Controlling dragon auras enabled, but DragonAuras mod not loaded', 1, 1);
+        } else if (!SugarLumpHarvester.dragonAurasModLoaded()) {
+            SugarLumpHarvester.notify(
+                'Warning: Controlling dragon auras enabled, but DragonAuras mod not loaded', 6, 1);
             return false;
         } else {
             return true;
@@ -83,8 +92,8 @@ SugarLumpHarvester.launch = function() {
                 if (age >= Game.lumpRipeAge) {
                     Game.clickLump();
                 } else {
-                    Game.Notify(SugarLumpHarvester.name,
-                        'BUG: Expected sugar lump to be ripe after switching dragon auras');
+                    SugarLumpHarvester.notify(
+                        'BUG: Expected sugar lump to be ripe after switching dragon auras', 0, 0);
                 }
                 const rebuy2 = DragonAuras.update(origAuras);
                 if (SugarLumpHarvester.config.rebuyAfterDragonAura) {
@@ -146,7 +155,7 @@ SugarLumpHarvester.launch = function() {
                 'Control Dragon Auras: YES', 'Control Dragon Auras: NO',
                 'SugarLumpHarvester.toggleOption'),
             '(Automatically update the dragon auras when desirable)',
-            (typeof DragonAuras != 'undefined'));
+            SugarLumpHarvester.dragonAurasModLoaded());
         str += listingDiv(
             CCSE.MenuHelper.ToggleButton(SugarLumpHarvester.config, 'rebuyAfterDragonAura',
                 'SugarLumpHarvester_option_rebuyAfterDragonAura',
