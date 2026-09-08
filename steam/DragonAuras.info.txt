@@ -1,0 +1,12 @@
+{
+  "Name": "Dragon Auras",
+  "ID": "DragonAuras",
+  "Author": "Groge",
+  "Description": "Gives other mods the ability to safely mutate dragon auras. Check the .js for the API but the main functions are:\n\n* DragonAuras.get()\n* DragonAuras.update(auras)\n\nNOTE - does not disable steam achievements.",
+  "ModVersion": 1.0,
+  "GameVersion": 2.053,
+  "Date": "08/09/2026",
+  "Dependencies": [],
+  "Disabled": 0,
+  "AllowSteamAchievs": 1
+}

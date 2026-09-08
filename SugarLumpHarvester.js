@@ -1,0 +1,179 @@
+if (SugarLumpHarvester === undefined) var SugarLumpHarvester = {};
+if (typeof CCSE == 'undefined') Game.LoadMod('https://klattmose.github.io/CookieClicker/CCSE.js');
+if (typeof DragonAuras == 'undefined') Game.LoadMod('https://grogers0.github.io/cookie_clicker/DragonAuras.js');
+
+SugarLumpHarvester.id = 'SugarLumpHarvester';
+SugarLumpHarvester.name = 'Sugar Lump Harvester';
+SugarLumpHarvester.version = '1.0';
+
+SugarLumpHarvester.launch = function() {
+    SugarLumpHarvester.init = function() {
+        SugarLumpHarvester.isLoaded = true;
+        SugarLumpHarvester.config = SugarLumpHarvester.defaultConfig();
+
+        Game.customStatsMenu.push(function() {
+            CCSE.AppendStatsVersionNumber(SugarLumpHarvester.name, SugarLumpHarvester.version);
+        });
+        Game.customOptionsMenu.push(function() {
+            CCSE.AppendCollapsibleOptionsMenu(SugarLumpHarvester.name, SugarLumpHarvester.getMenuString());
+        });
+
+        CCSE.customSave.push(function() {
+            CCSE.config.OtherMods.SugarLumpHarvester = SugarLumpHarvester.config;
+        });
+        CCSE.customLoad.push(function() {
+            if (CCSE.config.OtherMods.SugarLumpHarvester) {
+                SugarLumpHarvester.config = Object.assign(SugarLumpHarvester.defaultConfig(),
+                    CCSE.config.OtherMods.SugarLumpHarvester);
+            }
+
+            SugarLumpHarvester.execute();
+        });
+
+        // Attempt every so often in case the dragon is upgraded or some other mod updates lumps
+        setInterval(SugarLumpHarvester.execute, 60000);
+
+        SugarLumpHarvester.execute();
+
+        Game.Notify(SugarLumpHarvester.name, 'Mod loaded', 1, 1);
+    };
+
+    SugarLumpHarvester.defaultConfig = function() {
+        return {
+            controlDragonAuras: (typeof DragonAuras != 'undefined'),
+            rebuyAfterDragonAura: true,
+        };
+    };
+
+    SugarLumpHarvester.bestDragonAuras = function() {
+        return ['Dragon\'s Curve', 'Reality Bending'];
+    };
+
+    SugarLumpHarvester.shouldControlDragonAuras = function() {
+        return SugarLumpHarvester.config.controlDragonAuras && typeof DragonAuras != 'undefined';
+    };
+
+    SugarLumpHarvester.shouldControlDragonAurasWithWarning = function() {
+        if (!SugarLumpHarvester.config.controlDragonAuras) {
+            return false;
+        } else if (typeof DragonAuras == 'undefined') {
+            Game.Notify(SugarLumpHarvester.name,
+                'Warning: Controlling dragon auras enabled, but DragonAuras mod not loaded', 1, 1);
+            return false;
+        } else {
+            return true;
+        }
+    };
+
+    SugarLumpHarvester.execute = function() {
+        if (SugarLumpHarvester.timeout) {
+            clearTimeout(SugarLumpHarvester.timeout);
+            SugarLumpHarvester.timeout = null;
+        }
+        if (!Game.canLumps()) {
+            return;
+        }
+        const age = Date.now() - Game.lumpT;
+        if (SugarLumpHarvester.shouldControlDragonAurasWithWarning()) {
+            const optimalRipeAge = SugarLumpHarvester.computeOptimalRipeAge();
+            if (age >= optimalRipeAge) {
+                const origAuras = DragonAuras.get();
+                const rebuy1 = DragonAuras.update(SugarLumpHarvester.bestDragonAuras());
+                Game.computeLumpTimes(); // Immediately instead of waiting a tick for recalculating
+                if (age >= Game.lumpRipeAge) {
+                    Game.clickLump();
+                } else {
+                    Game.Notify(SugarLumpHarvester.name,
+                        'BUG: Expected sugar lump to be ripe after switching dragon auras');
+                }
+                const rebuy2 = DragonAuras.update(origAuras);
+                if (SugarLumpHarvester.config.rebuyAfterDragonAura) {
+                    DragonAuras.rebuy(rebuy2);
+                    DragonAuras.rebuy(rebuy1);
+                }
+            }
+        } else if (age >= Game.lumpRipeAge) {
+            Game.clickLump();
+        }
+
+        SugarLumpHarvester.reschedule();
+    };
+
+    SugarLumpHarvester.computeOptimalRipeAge = function() {
+        if (SugarLumpHarvester.shouldControlDragonAuras()) {
+            return Game.lumpRipeAge *
+                (1 + Game.auraMult('Dragon\'s Curve') * 0.05) /
+                (1 + DragonAuras.auraMultAfterUpdate(SugarLumpHarvester.bestDragonAuras()) * 0.05);
+        } else {
+            return Game.lumpRipeAge;
+        }
+    };
+
+
+    // Schedule a precise timer to harvest at the exact right time
+    SugarLumpHarvester.reschedule = function() {
+        if (SugarLumpHarvester.timeout) {
+            clearTimeout(SugarLumpHarvester.timeout);
+            SugarLumpHarvester.timeout = null;
+        }
+        if (Game.canLumps()) {
+            const millis = Math.max(1,
+                Game.lumpT + SugarLumpHarvester.computeOptimalRipeAge() - Date.now());
+            SugarLumpHarvester.timeout = setTimeout(SugarLumpHarvester.execute, millis);
+        }
+    };
+
+    SugarLumpHarvester.getMenuString = function() {
+        let listingDiv = function(innerHtml, labelText, enabled) {
+            let className = 'listing';
+            if (!enabled) {
+                className += ' disable';
+            }
+            let str = '<div class="' + className + '">';
+            str += innerHtml;
+            if (labelText !== '') {
+                str += '<label>' + labelText + '</label>';
+            }
+            str += '</div>';
+            return str;
+        };
+
+        let str = '';
+
+        str += listingDiv(
+            CCSE.MenuHelper.ToggleButton(SugarLumpHarvester.config, 'controlDragonAuras',
+                'SugarLumpHarvester_option_controlDragonAuras',
+                'Control Dragon Auras: YES', 'Control Dragon Auras: NO',
+                'SugarLumpHarvester.toggleOption'),
+            '(Automatically update the dragon auras when desirable)',
+            (typeof DragonAuras != 'undefined'));
+        str += listingDiv(
+            CCSE.MenuHelper.ToggleButton(SugarLumpHarvester.config, 'rebuyAfterDragonAura',
+                'SugarLumpHarvester_option_rebuyAfterDragonAura',
+                'Rebuy After Dragon Aura Changes: YES', 'Rebuy After Dragon Aura Changes: NO',
+                'SugarLumpHarvester.toggleOption'),
+            '(Automatically rebuy the highest level building after changing dragon auras)',
+            SugarLumpHarvester.config.controlDragonAuras);
+
+        return str;
+    };
+
+    SugarLumpHarvester.toggleOption = function(prefName, button, on, off, invert) {
+        SugarLumpHarvester.config[prefName] = !SugarLumpHarvester.config[prefName];
+        Game.UpdateMenu();
+
+        SugarLumpHarvester.execute();
+    };
+
+    Game.registerMod(SugarLumpHarvester.id, SugarLumpHarvester);
+};
+
+if (!SugarLumpHarvester.isLoaded) {
+    if (CCSE && CCSE.isLoaded) {
+        SugarLumpHarvester.launch();
+    } else {
+        if (!CCSE) var CCSE = {};
+        if (!CCSE.postLoadHooks) CCSE.postLoadHooks = [];
+        CCSE.postLoadHooks.push(SugarLumpHarvester.launch);
+    }
+}
