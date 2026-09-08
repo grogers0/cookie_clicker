@@ -8,5 +8,6 @@
   "Date": "02/09/2026",
   "Dependencies": ["CCSE"],
   "Disabled": 0,
-  "AllowSteamAchievs": 1
+  "AllowSteamAchievs": 1,
+  "Workshop": "3794536186"
 }
