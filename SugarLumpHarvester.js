@@ -29,6 +29,18 @@ SugarLumpHarvester.launch = function() {
 
             SugarLumpHarvester.execute();
         });
+        Game.customLumpTooltip.push(function(str) {
+            const closingDiv = '</div>';
+            if (str.endsWith(closingDiv)) {
+                str = str.slice(0, -closingDiv.length);
+                str += '<div class="line"></div>'
+                str += '<b>Sugar Lump Harvester</b> will harvest in ';
+                const delaySecs = SugarLumpHarvester.computeMillisToNextHarvest() / 1000;
+                str += Game.sayTime((delaySecs + 1) * Game.fps, -1);
+                str += closingDiv;
+            }
+            return str;
+        });
 
         // Attempt every so often in case the dragon is upgraded or some other mod updates lumps
         setInterval(SugarLumpHarvester.execute, 60000);
@@ -118,6 +130,9 @@ SugarLumpHarvester.launch = function() {
         }
     };
 
+    SugarLumpHarvester.computeMillisToNextHarvest = function() {
+        return Math.max(1, Game.lumpT + SugarLumpHarvester.computeOptimalRipeAge() - Date.now());
+    };
 
     // Schedule a precise timer to harvest at the exact right time
     SugarLumpHarvester.reschedule = function() {
@@ -126,9 +141,8 @@ SugarLumpHarvester.launch = function() {
             SugarLumpHarvester.timeout = null;
         }
         if (Game.canLumps()) {
-            const millis = Math.max(1,
-                Game.lumpT + SugarLumpHarvester.computeOptimalRipeAge() - Date.now());
-            SugarLumpHarvester.timeout = setTimeout(SugarLumpHarvester.execute, millis);
+            SugarLumpHarvester.timeout = setTimeout(SugarLumpHarvester.execute,
+                SugarLumpHarvester.computeMillisToNextHarvest());
         }
     };
 
