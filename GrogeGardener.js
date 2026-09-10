@@ -1,7 +1,10 @@
 if (GrogeGardener === undefined) var GrogeGardener = {};
 if (typeof CCSE == 'undefined') Game.LoadMod('https://klattmose.github.io/CookieClicker/CCSE.js');
+// FIXME
+if (typeof DragonAuras == 'undefined') Game.LoadMod('https://grogers0.github.io/cookie_clicker/DragonAuras.js'); // Optional
 
 GrogeGardener.name = 'Groge Gardener';
+GrogeGardener.id = 'GrogeGardener';
 GrogeGardener.version = '0.1';
 
 GrogeGardener.launch = function() {
@@ -37,8 +40,9 @@ GrogeGardener.launch = function() {
     };
 
     GrogeGardener.waitForMinigame = function() {
-        let container = document.getElementById('gardenPanel');
-        if (!GrogeGardener.minigame() || !container) {
+        let gardenPanel = document.getElementById('gardenPanel');
+        let gardenField = document.getElementById('gardenField');
+        if (!GrogeGardener.minigame() || !gardenPanel || !gardenField) {
             setTimeout(GrogeGardener.waitForMinigame, 1000);
         } else {
             GrogeGardener.isMinigameLoaded = true;
@@ -47,23 +51,31 @@ GrogeGardener.launch = function() {
             title.id = 'GrogeGardener_title';
             title.className = 'title gardenPanelLabel';
             title.textContent = GrogeGardener.name;
-            container.appendChild(title);
+            gardenPanel.appendChild(title);
 
             let line = document.createElement('div');
             line.id = 'GrogeGardener_line';
             line.className = 'line';
-            container.appendChild(line);
+            gardenPanel.appendChild(line);
 
             let statusBox = document.createElement('div');
             statusBox.id = 'GrogeGardener_statusBox';
             statusBox.className = 'gardenPanelLabel';
-            container.appendChild(statusBox);
+            gardenPanel.appendChild(statusBox);
+
+            // TODO - fix the style of the combo button
+            let comboButton = document.createElement('div');
+            comboButton.onclick = GrogeGardener.executeCombo;
+            comboButton.textContent = 'COMBO';
+            comboButton.style = 'position:absolute; top:10px; right:10px';
+            gardenField.appendChild(comboButton);
 
             GrogeGardener.resetTimers();
         }
     };
 
-    GrogeGardener.mutateMode = 'mutate';
+    GrogeGardener.excludedXYs = new Set();
+    GrogeGardener.unlockSeedsMode = 'unlockSeeds';
     GrogeGardener.cookieDropMode = 'cookieDrop';
     GrogeGardener.goldenCookieMode = 'goldenCookie';
     GrogeGardener.defaultConfig = function() {
@@ -71,7 +83,7 @@ GrogeGardener.launch = function() {
             running: false, // Start disabled to avoid conflict with other gardening mods
             mode: GrogeGardener.cookieDropMode,
             controlSoil: true,
-            controlDragonAuras: false,
+            controlDragonAuras: GrogeGardener.dragonAurasModLoaded(),
             rebuyAfterDragonAura: true,
             autoConvert: false,
             avoidPlantingDuringBuffs: false,
@@ -85,10 +97,6 @@ GrogeGardener.launch = function() {
             statusBox.textContent = str;
         }
     };
-
-    GrogeGardener.mindOverMatterAura = 'Mind Over Matter';
-    GrogeGardener.supremeIntellectAura = 'Supreme Intellect';
-    GrogeGardener.realityBendingAura = 'Reality Bending';
 
     GrogeGardener.cookieDropOrder = function() {
         const plants = GrogeGardener.minigame().plants;
@@ -119,8 +127,7 @@ GrogeGardener.launch = function() {
     GrogeGardener.needsCookieDrop = function(plantId) {
         const minigame = GrogeGardener.minigame();
         let upgrades = GrogeGardener.cookieDropUpgrades();
-        return upgrades.has(plantId) && minigame.plantsById[plantId].unlocked &&
-            !Game.UpgradesById[upgrades.get(plantId)].unlocked;
+        return upgrades.has(plantId) && !Game.UpgradesById[upgrades.get(plantId)].unlocked;
     };
 
 
@@ -149,19 +156,6 @@ GrogeGardener.launch = function() {
         ]);
     };
 
-    // TODO - we can probably just assume this from the ageTick/ageTickR of the second plant?
-    GrogeGardener.mutateBeforeUnlocking = function() {
-        const plants = GrogeGardener.minigame().plants;
-        return {
-            [plants.crumbspore.id]: {
-                [plants.wrinklegill.id]: plants.brownMold.id,
-                [plants.glovemorel.id]: plants.thumbcorn.id,
-            },
-            [plants.whiteMildew]: { [-1]: plants.whiteMildew.id, },
-            // FIXME
-        };
-    };
-
     GrogeGardener.minigame = function() {
         return Game.ObjectsById[2].minigame;
     };
@@ -187,8 +181,8 @@ GrogeGardener.launch = function() {
         GrogeGardener.suppressSoilChanges = false;
         GrogeGardener.excludedXYs = new Set();
         switch (GrogeGardener.config.mode) {
-            case GrogeGardener.mutateMode:
-                GrogeGardener.executeMutateMode();
+            case GrogeGardener.unlockSeedsMode:
+                GrogeGardener.executeUnlockSeedsMode();
                 break;
             case GrogeGardener.cookieDropMode:
                 GrogeGardener.executeCookieDropMode();
@@ -199,7 +193,7 @@ GrogeGardener.launch = function() {
         }
     };
 
-    GrogeGardener.executeMutateMode = function() {
+    GrogeGardener.executeUnlockSeedsMode = function() {
         const minigame = GrogeGardener.minigame();
         if (GrogeGardener.config.autoConvert) {
             minigame.convert();
@@ -212,16 +206,16 @@ GrogeGardener.launch = function() {
         const targetId = GrogeGardener.getTargetPlantId();
         if (targetId === null) {
             if (minigame.plantsUnlockedN == minigame.plantsN) {
-                GrogeGardener.updateStatus('Cannot attempt to mutate anything, all plants unlocked');
+                GrogeGardener.updateStatus('All seeds unlocked');
             } else {
-                GrogeGardener.updateStatus('Cannot attempt to mutate anything right now, awaiting further growth');
+                GrogeGardener.updateStatus('Cannot attempt to unlock any seeds, awaiting further growth');
             }
             return;
         }
-        GrogeGardener.updateStatus('Attempting to mutate: ' + minigame.plantsById[targetId].name);
+        GrogeGardener.updateStatus('Attempting to unlock: ' + minigame.plantsById[targetId].name);
 
         if (targetId == minigame.plants.meddleweed.id) {
-            GrogeGardener.executeMutateForMeddleweed();
+            GrogeGardener.executeUnlockSeedsForMeddleweed();
         }
 
         // FIXME
@@ -231,8 +225,8 @@ GrogeGardener.launch = function() {
     GrogeGardener.harvestLockedNearDeath = function() {
         const minigame = GrogeGardener.minigame();
         for (const [x, y] of GrogeGardener.getXYs()) {
-            let plantId = minigame.plot[y][x][0] - 1;
-            let age = minigame.plot[y][x][1];
+            const plantId = minigame.plot[y][x][0] - 1;
+            const age = minigame.plot[y][x][1];
             if (plantId !== -1 && !minigame.plantsById[plantId].unlocked &&
                 GrogeGardener.isNearDeath(plantId, age)) {
                 minigame.harvest(x, y);
@@ -246,7 +240,7 @@ GrogeGardener.launch = function() {
         const [minX, minY, lastX, lastY] =
             minigame.plotLimits[Math.min(minigame.parent.level, 9) - 1];
         for (const [x, y] of GrogeGardener.getXYs()) {
-            let plantId = minigame.plot[y][x][0] - 1;
+            const plantId = minigame.plot[y][x][0] - 1;
             if (plantId !== -1 && !minigame.plantsById[plantId].unlocked &&
                 !minigame.plantsById[plantId].noContam) {
                 let deltas = [];
@@ -270,8 +264,8 @@ GrogeGardener.launch = function() {
         const minigame = GrogeGardener.minigame();
         let best = new Map();
         for (const [x, y] of GrogeGardener.getXYs()) {
-            let plantId = minigame.plot[y][x][0] - 1;
-            let age = minigame.plot[y][x][1];
+            const plantId = minigame.plot[y][x][0] - 1;
+            const age = minigame.plot[y][x][1];
             if (plantId !== -1 && !minigame.plantsById[plantId].unlocked) {
                 if (!best.has(plantId) || age > best.get(plantId)[0]) {
                     best.set(plantId, [age, x, y]);
@@ -280,7 +274,7 @@ GrogeGardener.launch = function() {
         }
 
         for (const [x, y] of GrogeGardener.getXYs()) {
-            let plantId = minigame.plot[y][x][0] - 1;
+            const plantId = minigame.plot[y][x][0] - 1;
             if (plantId !== -1 && !minigame.plantsById[plantId].unlocked) {
                 const [age, x2, y2] = best.get(plantId);
                 if (x !== x2 || y !== y2) {
@@ -309,7 +303,7 @@ GrogeGardener.launch = function() {
         return null;
     };
 
-    GrogeGardener.executeMutateForMeddleweed = function() {
+    GrogeGardener.executeUnlockSeedsForMeddleweed = function() {
         const minigame = GrogeGardener.minigame();
         GrogeGardener.changeSoil(minigame.soils.fertilizer.id);
 
@@ -325,34 +319,39 @@ GrogeGardener.launch = function() {
     GrogeGardener.executeCookieDropMode = function() {
         const minigame = GrogeGardener.minigame();
 
-        let targetId = null;
-        for (const plantId of GrogeGardener.cookieDropOrder()) {
-            if (GrogeGardener.needsCookieDrop(plantId)) {
-                targetId = plantId;
-                break;
+        let keepGoing = true;
+
+        while (keepGoing) {
+            let missingPlants = [];
+            let targetId = null;
+            for (const plantId of GrogeGardener.cookieDropOrder()) {
+                if (GrogeGardener.needsCookieDrop(plantId)) {
+                    if (!minigame.plantsById[plantId].unlocked) {
+                        missingPlants.push(minigame.plantsById[plantId].name);
+                    } else if (targetId === null) {
+                        targetId = plantId;
+                    }
+                }
             }
-        }
 
-        if (targetId === null) {
-            GrogeGardener.updateStatus('Cannot attempt any cookie drops');
-            return;
-        }
-        GrogeGardener.updateStatus('Attempting to drop: ' +
-            Game.UpgradesById[GrogeGardener.cookieDropUpgrades().get(targetId)].name + ' (' +
-            minigame.plantsById[targetId].name + ')');
+            if (targetId === null) {
+                if (missingPlants.length === 0) {
+                    GrogeGardener.updateStatus('All cookie drops acquired');
+                } else {
+                    GrogeGardener.updateStatus('To attempt more cookie drops, one of these plants must first be unlocked: ' + missingPlants.join(', '));
+                }
+                return;
+            }
+            GrogeGardener.updateStatus('Attempting to drop: ' +
+                Game.UpgradesById[GrogeGardener.cookieDropUpgrades().get(targetId)].name + ' (' +
+                minigame.plantsById[targetId].name + ')');
 
-        // Others may already be excluded, e.g. in auto mode if we are using the plot for mutation
-        // but these should always be excluded even if the user mixes up the mode
-        GrogeGardener.excludeLockedMaturingPlants();
+            GrogeGardener.changeSoil(minigame.soils.fertilizer.id);
+            GrogeGardener.changeDragonAuras(GrogeGardener.fastGrowingAuras());
 
-        GrogeGardener.changeSoil(minigame.soils.fertilizer.id);
-        GrogeGardener.changeDragonAuras(
-            GrogeGardener.supremeIntellectAura, GrogeGardener.realityBendingAura);
-
-        if (targetId === minigame.plants.ichorpuff.id) {
-            GrogeGardener.executeCookieDropModeForIchorpuffs();
-        } else {
-            GrogeGardener.executeCookieDropModeNormal(targetId);
+            keepGoing = targetId === minigame.plants.ichorpuff.id ?
+                GrogeGardener.executeCookieDropModeForIchorpuffs() :
+                GrogeGardener.executeCookieDropModeNormal(targetId);
         }
     };
 
@@ -360,71 +359,214 @@ GrogeGardener.launch = function() {
         const minigame = GrogeGardener.minigame();
 
         for (const [x, y] of GrogeGardener.getXYs()) {
-            let plantId = minigame.plot[y][x][0] - 1;
-            let age = minigame.plot[y][x][1];
+            const plantId = minigame.plot[y][x][0] - 1;
+            const age = minigame.plot[y][x][1];
             if (plantId === -1) {
                 GrogeGardener.plantSeed(targetId, x, y);
-            } else if (!minigame.plantsById[plantId].unlocked) {
+            } else if (!minigame.plantsById[plantId].unlocked &&
+                age < minigame.plantsById[plantId].mature) {
                 // Ignore it and let it grow, in case we switched modes
             } else if (plantId !== targetId && !GrogeGardener.needsCookieDrop(plantId)) {
                 // Leftover from something else
                 minigame.harvest(x, y);
+                minigame.harvest(x, y); // Twice in case of weed spread
                 GrogeGardener.plantSeed(targetId, x, y);
             } else if (age >= minigame.plantsById[plantId].mature) {
-                GrogeGardener.changeDragonAuras(
-                    GrogeGardener.mindOverMatterAura, GrogeGardener.realityBendingAura);
+                GrogeGardener.changeDragonAuras(GrogeGardener.randomDropAuras());
                 minigame.harvest(x, y);
+                if (!GrogeGardener.needsCookieDrop(targetId)) {
+                    break;
+                }
                 GrogeGardener.plantSeed(targetId, x, y);
             } else {
                 // Not mature yet, just wait
             }
         }
 
-        GrogeGardener.changeDragonAuras(
-            GrogeGardener.supremeIntellectAura, GrogeGardener.realityBendingAura);
+        let gotCookieDrop = !GrogeGardener.needsCookieDrop(targetId);
+        if (gotCookieDrop) {
+            // Cleanup
+            for (const [x, y] of GrogeGardener.getXYs()) {
+                if (minigame.plot[y][x][0] - 1 === targetId) {
+                    minigame.harvest(x, y);
+                }
+            }
+        } else {
+            GrogeGardener.changeDragonAuras(GrogeGardener.fastGrowingAuras());
+        }
+
+        return gotCookieDrop;
     };
 
-    // If Ichorpuff are planted next to each other, they slow each other's growth down, so special
-    // case the handling. We can also time the rounds with keenmoss growing to maximize the chance.
+    // If Ichorpuff are planted next to each other, they slow each other's growth down. So special
+    // case the handling compared to other cookie drops to avoid any ichorpuffs next to each other.
+    // If unlocked, keenmoss is planted in the buffer areas to increase the random drop chance. It
+    // will look like this (where I: ichorpuff, -: keenmoss or empty)
+    // I - I - I -
+    // - - - - - -
+    // I - I - I -
+    // - - - - - -
+    // I - I - I -
+    // - - - - - -
+    // I - I - I -
+    // - - - - - -
     GrogeGardener.executeCookieDropModeForIchorpuffs = function() {
         const minigame = GrogeGardener.minigame();
         const keenmoss = minigame.plants.keenmoss;
         const ichorpuff = minigame.plants.ichorpuff;
 
-        // When there are odd numbers of rows or columns, prefer those
-        let evenXY = minigame.parent.level < 6;
+        const [firstX, firstY] = minigame.plotLimits[Math.min(minigame.parent.level, 9) - 1];
 
         for (const [x, y] of GrogeGardener.getXYs()) {
-            let plantId = minigame.plot[y][x][0] - 1;
-            let age = minigame.plot[y][x][1];
-
-            const targetIchorpuff = (evenXY === (x % 2 === 0) && evenXY === (y % 2 === 0));
-            const targetId = targetIchorpuff ? ichorpuff.id : keenmoss.id;
+            const plantId = minigame.plot[y][x][0] - 1;
+            const age = minigame.plot[y][x][1];
+            const targetId = ((firstX % 2) === (x % 2) && (firstY % 2) === (y % 2)) ?
+                ichorpuff.id : keenmoss.id;
             if (plantId === -1) {
                 GrogeGardener.plantSeed(targetId, x, y);
-            } else if (!minigame.plantsById[plantId].unlocked) {
+            } else if (!minigame.plantsById[plantId].unlocked &&
+                age < minigame.plantsById[plantId].mature) {
                 // Ignore it and let it grow, in case we switched modes
             } else if (GrogeGardener.needsCookieDrop(plantId) &&
                 age >= minigame.plantsById[plantId].mature) {
-                GrogeGardener.changeDragonAuras(
-                    GrogeGardener.mindOverMatterAura, GrogeGardener.realityBendingAura);
+                GrogeGardener.changeDragonAuras(GrogeGardener.randomDropAuras());
                 minigame.harvest(x, y);
                 GrogeGardener.plantSeed(targetId, x, y);
             } else if (plantId !== targetId && !GrogeGardener.needsCookieDrop(plantId)) {
                 // Leftover from something else
                 minigame.harvest(x, y);
+                minigame.harvest(x, y); // Twice in case of weed spread
                 GrogeGardener.plantSeed(targetId, x, y);
             } else {
                 // Not mature yet, just wait
             }
         }
 
-        GrogeGardener.changeDragonAuras(
-            GrogeGardener.supremeIntellectAura, GrogeGardener.realityBendingAura);
+        let gotCookieDrop = !GrogeGardener.needsCookieDrop(ichorpuff.id);
+        if (gotCookieDrop) {
+            // Cleanup
+            for (const [x, y] of GrogeGardener.getXYs()) {
+                const plantId = minigame.plot[y][x][0] - 1;
+                if (plantId === ichorpuff.id || (plantId === keenmoss.id && keenmoss.unlocked)) {
+                    minigame.harvest(x, y);
+                }
+            }
+        } else {
+            GrogeGardener.changeDragonAuras(GrogeGardener.fastGrowingAuras());
+        }
+
+        return gotCookieDrop;
     };
 
     GrogeGardener.executeGoldenCookieMode = function() {
-        // FIXME
+        const minigame = GrogeGardener.minigame();
+        if (!minigame.plants.goldenClover.unlocked) {
+            // There's no half decent fallback. Maybe shimmerlilies?
+            GrogeGardener.updateStatus('Unlock golden clovers before enabling golden cookie mode');
+            return;
+        }
+        GrogeGardener.updateStatus('Planting for maximum golden cookie chance');
+
+        if (minigame.plants.nursetulip.unlocked) {
+            GrogeGardener.executeGoldenCookieModeNursetulips();
+        } else {
+            GrogeGardener.executeGoldenCookieModeBasic();
+        }
+    };
+
+    GrogeGardener.executeGoldenCookieModeNursetulips = function() {
+        // FIXME - plant rows(or cols) of nursetulips and golden clovers. When almost all are
+        // mature, switch to clay. When the nursetulips are about to expire, delete them and plant
+        // GCs in their place for 1 tick, then switch back to nursetulips
+    };
+
+    GrogeGardener.executeGoldenCookieModeBasic = function() {
+        const minigame = GrogeGardener.minigame();
+        const goldenClover = minigame.plants.goldenClover;
+
+        let countExisting = 0;
+        let countEmpty = 0;
+        let countMatureNextTick = 0;
+        let countDeadNextTick = 0;
+        for (const [x, y] of GrogeGardener.getXYs()) {
+            const plantId = minigame.plot[y][x][0] - 1;
+            const age = minigame.plot[y][x][1];
+            if (plantId === -1) {
+                countEmpty++;
+            } else if (!minigame.plantsById[plantId].unlocked &&
+                age < minigame.plantsById[plantId].mature) {
+                // Ignore it and let it grow, to prevent interference with mutations
+            } else if (plantId === goldenClover.id) {
+                countExisting++;
+                const approxAgeNextTick = age + goldenClover.ageTick + goldenClover.ageTickR / 2;
+                if (approxAgeNextTick >= 100) {
+                    countDeadNextTick++;
+                } else if (approxAgeNextTick >= goldenClover.mature) {
+                    countMatureNextTick++;
+                }
+            } else {
+                countEmpty++;
+            }
+        }
+
+        if (countExisting < 0.9 * (countExisting + countEmpty)) {
+            // Start a new planting round if the number of GCs is too low
+            GrogeGardener.changeSoil(minigame.soils.fertilizer.id);
+
+            for (const [x, y] of GrogeGardener.getXYs()) {
+                const plantId = minigame.plot[y][x][0] - 1;
+                const age = minigame.plot[y][x][1];
+                if (plantId === -1) {
+                    GrogeGardener.plantSeed(goldenClover.id, x, y);
+                } else if (!minigame.plantsById[plantId].unlocked &&
+                    age < minigame.plantsById[plantId].mature) {
+                    // Ignore it and let it grow, to prevent interference with mutations
+                } else {
+                    minigame.harvest(x, y);
+                    minigame.harvest(x, y); // Twice in case of weed spread
+                    GrogeGardener.plantSeed(goldenClover.id, x, y);
+                }
+            }
+        } else if (countMatureNextTick >= 0.95 * (countExisting + countEmpty)) {
+            // If almost all will be mature next tick we can switch to clay to boost the power
+            GrogeGardener.changeSoil(minigame.soils.clay.id);
+        }
+    };
+
+    GrogeGardener.executeCombo = function() {
+        const minigame = GrogeGardener.minigame();
+        const targetId = GrogeGardener.getComboPlant();
+
+        for (const [x, y] of GrogeGardener.getXYs()) {
+            const plantId = minigame.plot[y][x][0] - 1;
+            const age = minigame.plot[y][x][1];
+            if (plantId === -1) {
+                GrogeGardener.plantSeed(targetId, x, y, true);
+            } else if (!minigame.plantsById[plantId].unlocked &&
+                age < minigame.plantsById[plantId].mature) {
+                // Ignore it and let it grow, to prevent interference with mutations
+            } else if (plantId !== targetId) {
+                // Harvest and replant the combo plant
+                minigame.harvest(x, y);
+                minigame.harvest(x, y); // Twice in case of weed spread
+                GrogeGardener.plantSeed(targetId, x, y, true);
+            }
+        }
+    };
+
+    GrogeGardener.getComboPlant = function() {
+        const minigame = GrogeGardener.minigame();
+        const comboPlantOrder = [
+            minigame.plants.whiskerbloom.id,
+            minigame.plants.glovemorel.id,
+            minigame.plants.thumbcorn.id,
+            minigame.plants.bakerWheat.id,
+        ];
+        for (const plantId of comboPlantOrder) {
+            if (minigame.plantsById[plantId].unlocked) {
+                return plantId;
+            }
+        }
     };
 
     GrogeGardener.changeSoil = function(soilId) {
@@ -467,63 +609,28 @@ GrogeGardener.launch = function() {
         return GrogeGardener.getRawXYs().filter(xy => !GrogeGardener.excludedXYs.has(xy));
     };
 
-    GrogeGardener.excludeLockedMaturingPlants = function() {
-        const minigame = GrogeGardener.minigame();
-        for (const [x, y] of GrogeGardener.getXYs()) {
-            let plantId = minigame.plot[y][x][0] - 1;
-            if (plantId === -1) {
-                continue;
-            }
-            if (!minigame.plantsById[plantId].unlocked) {
-                GrogeGardener.excludedXYs.add([x, y]);
-            }
-        }
+    GrogeGardener.fastGrowingAuras = function() {
+        return ['Supreme Intellect', 'Reality Bending'];
+    };
+    GrogeGardener.randomDropAuras = function() {
+        return ['Mind Over Matter', 'Reality Bending'];
     };
 
-    GrogeGardener.changeDragonAuras = function(auraName1, auraName2) {
-        let success = GrogeGardener.changeDragonAuraBySlot(auraName1, 0);
-        // If the desired aura hasn't been unlocked, slot the desired second aura as the first
-        let slotId2 = success ? 1 : 0;
-        GrogeGardener.changeDragonAuraBySlot(auraName2, slotId2);
+    GrogeGardener.dragonAurasModLoaded = function() {
+        return (typeof DragonAuras != 'undefined');
     };
 
-    GrogeGardener.changeDragonAuraBySlot = function(auraName, slotId)  {
+    GrogeGardener.changeDragonAuras = function(auras) {
         if (!GrogeGardener.config.controlDragonAuras) {
             return false;
-        } else if (slotId !== 0 && slotId !== 1) {
+        } else if (!GrogeGardener.dragonAurasModLoaded()) {
             return false;
-        } else if (slotId === 1 && Game.dragonLevel < 27) {
-            // Second slot not unlocked yet
-            return false;
-        } else if (!Game.dragonAurasBN.hasOwnProperty(auraName)) {
-            // Typo
-            Game.Notify(GrogeGardener.name, 'BUG: aura name "' + auraName + '" misconfigured', 1, 1);
-            return false;
-        }
-        const auraId = Game.dragonAurasBN[auraName].id;
-        if (Game.dragonLevel < auraId + 4) {
-            // Aura not unlocked
-            return false;
-        }
-        const slotName = slotId === 0 ? 'dragonAura' : 'dragonAura2';
-        if (Game[slotName] === auraId) {
-            // Already set to correct aura
-            return true;
         }
 
-        Game[slotName] = auraId;
-
-        // Find the largest building to sacrifice (as normal)
-        for (let i = Game.ObjectsById.length - 1; i >= 0; i--) {
-            if (Game.ObjectsById[i].amount > 0) {
-                Game.ObjectsById[i].sacrifice(1);
-                if (GrogeGardener.config.rebuyAfterDragonAura) {
-                    Game.ObjectsById[i].buy(1);
-                }
-                break;
-            }
+        const rebuy = DragonAuras.update(auras);
+        if (GrogeGardener.config.rebuyAfterDragonAura) {
+            DragonAuras.rebuy(rebuy);
         }
-        return true;
     };
 
     GrogeGardener.isNearDeath = function(plantId, age) {
@@ -532,8 +639,8 @@ GrogeGardener.launch = function() {
         return !plant.immortal && age + plant.ageTick + plant.ageTickR >= 100;
     };
 
-    GrogeGardener.plantSeed = function(plantId, x, y) {
-        if (GrogeGardener.isBuffBlockingPlanting()) {
+    GrogeGardener.plantSeed = function(plantId, x, y, ignoreBuffs) {
+        if (!ignoreBuffs && GrogeGardener.isBuffBlockingPlanting()) {
             GrogeGardener.scheduleBuffExpiredTimeout();
             return false;
         }
@@ -683,8 +790,8 @@ GrogeGardener.launch = function() {
             '(quick toggle all functionality)', true);
         str += listingDiv(
             '<select id="GrogeGardener_option_mode" onchange="GrogeGardener.modeMenuChanged(this.value)">' +
-            modeOption(GrogeGardener.mutateMode, 'Mutation Mode') +
-            modeOption(GrogeGardener.cookieDropMode, 'Random Cookie Drop Mode') +
+            modeOption(GrogeGardener.unlockSeedsMode, 'Unlock Seeds Mode') +
+            modeOption(GrogeGardener.cookieDropMode, 'Cookie Drop Mode') +
             modeOption(GrogeGardener.goldenCookieMode, 'Golden Cookie Mode') +
             '</select>',
             '(select the mode)',
@@ -715,7 +822,7 @@ GrogeGardener.launch = function() {
                 'GrogeGardener.toggleOption'),
             '(Automatically convert the garden for sugar lumps when all seeds are unlocked)',
             GrogeGardener.config.running &&
-            GrogeGardener.config.mode === GrogeGardener.mutateMode);
+            GrogeGardener.config.mode === GrogeGardener.unlockSeedsMode);
         str += listingDiv(
             CCSE.MenuHelper.ToggleButton(GrogeGardener.config, 'avoidPlantingDuringBuffs',
                 'GrogeGardener_option_avoidPlantingDuringBuffs',
@@ -757,7 +864,7 @@ GrogeGardener.launch = function() {
         GrogeGardener.resetTimers();
     };
 
-    Game.registerMod('GrogeGardener', GrogeGardener);
+    Game.registerMod(GrogeGardener.id, GrogeGardener);
 };
 
 if (!GrogeGardener.isLoaded) {
